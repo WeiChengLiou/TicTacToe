@@ -102,13 +102,13 @@ if __name__ == '__main__':
     # print evalS(transform('000XXX000'))
     # print evalS(transform('OOXXOOXXO'))
 
-    # players = [ai.player('O'), ai.playerA('X')]
-    # players[1].genstate()
-    # players[1].train()
+    players = [ai.player('O'), ai.playerA('X')]
+    players[1].genstate()
+    players[1].train()
     # [player.load() for player in players]
 
     cnt = {'O': 0., 'X': 0., 'draw': 0.}
-    for i in xrange(10000):
+    for i in xrange(1000):
         ret = main(players)
         cnt[ret[0]] += 1
     print cnt
