@@ -81,7 +81,7 @@ class PI(collections.MutableMapping):
         return getkey(key)
 
 
-pi = PI()
+pi = dict()
 
 
 class STATE(object):
@@ -98,6 +98,7 @@ class STATEACTION(object):
     def __init__(self):
         self.r = 0.
         self.p = 1.
+        self.v = 0.
         self.ret = None
         self.nextstate = None
 
@@ -105,20 +106,19 @@ class STATEACTION(object):
 def Reward(state, state1):
     def score(state):
         ret = init.evalS(state)
-        cnt = np.zeros(2)
-        if ret:
-            if ret == 'O':
-                cnt[0] = 10
-            elif ret == 'X':
-                cnt[1] = 10
-        else:
+        cnt = 0.
+        if ret is None:
             pt = [1, 1, 1,
                   1, 1, 1,
                   1, 1, 1]
             for i, s in enumerate(state):
                 if s:
-                    j = 0 if s == 'O' else 1
-                    cnt[j] += pt[i]
+                    j = 1 if s == 'O' else -1
+                    cnt += pt[i] * j
+        elif ret == 'O':
+            cnt = 10.
+        elif ret == 'X':
+            cnt = -10.
         return cnt
 
     return score(state1) - score(state)
@@ -158,62 +158,43 @@ s0 = [None] * 9
 
 class playerA(player):
     # Smart player
-    pi = PI()
-
-    def action0(self, state):
-        acts = list(init.actions(state))
-        bestAct = [(None, -99)]
-        for act in acts:
-            state1 = newstate(state, act, self.sgn)
-            actV = (act, self.reward(state, state1))
-            if actV[1] > bestAct[0][1]:
-                bestAct = [actV]
-            elif actV[1] == bestAct[0][1]:
-                bestAct.append(actV)
-        try:
-            i = random.randint(len(bestAct))
-            bestAct = bestAct[i]
-        except:
-            set_trace()
-        return bestAct[0]
-
-    def action1(self, state):
-        V = self.pi[state]
-        bestAct = (None, -1e9)
-        for act, actf in V.Actions.iteritems():
-            r = actf.r
-            if actf.nextstate:
-                r += self.gamma * actf.nextstate.V
-            rV = (r[0] - r[1]) * (1 if self.sgn == 'O' else -1)
-            if rV > bestAct[1]:
-                bestAct = act, rV
-        if bestAct[0] is None:
-            print 'error action'
-            set_trace()
-
-        return bestAct[0]
+    pi = {}
 
     def action(self, state):
-        return self.action1(state)
+        try:
+            V = self.pi[tuple(state)]
+            bestAct = (None, -1e9)
+            for act, actf in V.Actions.iteritems():
+                rV = actf.v * (1 if self.sgn == 'O' else -1)
+                if rV > bestAct[1]:
+                    bestAct = act, rV
+            if bestAct[0] is None:
+                print 'error action'
+                set_trace()
+
+            return bestAct[0]
+        except:
+            print_exc()
+            set_trace()
 
     def train(self):
-        for i in xrange(10):
+        for i in xrange(60):
             dV = 0.
             for s, sf in self.pi.iteritems():
                 if sf.converge:
                     continue
-                V1 = np.zeros(2)
+                V1 = 0.
 
                 for act, af in sf.Actions.iteritems():
                     r = af.r
                     sf1 = af.nextstate
                     if (sf1 is not None) and (sf1.V is not None):
                         r += self.gamma * sf1.V
-                    V1 += af.p * r
+                    af.v = r
+                    V1 += af.p * af.v
 
                 if sf.V is not None:
                     dV = V1 - sf.V
-                    dV = np.abs(dV[0] - dV[1])
                     if dV < 1e-4:
                         sf.converge = True
                 sf.V = V1
@@ -237,8 +218,9 @@ class playerA(player):
                     v1.p = 1. / n
                     v1.ret = init.evalS(state1)
                     v1.r = Reward(s, state1)
+                    v1.v = v1.r
                     if v1.ret is None:
-                        key = getkey(state1)
+                        key = tuple(state1)
                         if key not in self.pi:
                             stateV = STATE(key)
                             self.pi[key] = stateV

@@ -23,13 +23,18 @@ def main(players):
             player = players[(turn % 2)]
             act = player.action(state)
             state = newstate(state, act, player.sgn)
+
+            cnt0 = sum([(x == 'O') for x in state])
+            cnt1 = sum([(x == 'X') for x in state])
+            assert(cnt1 <= cnt0)
+
             ret = evalS(state)
-            show(state)
+            #show(state)
             turn += 1
         except:
             print_exc()
             set_trace()
-    print ret, turn
+    return ret, turn
 
 
 keys = [
@@ -97,9 +102,13 @@ if __name__ == '__main__':
     # print evalS(transform('000XXX000'))
     # print evalS(transform('OOXXOOXXO'))
 
-    players = [ai.player('O'), ai.playerA('X')]
-    players[1].genstate()
-    players[1].train()
+    # players = [ai.player('O'), ai.playerA('X')]
+    # players[1].genstate()
+    # players[1].train()
     # [player.load() for player in players]
-    main(players)
 
+    cnt = {'O': 0., 'X': 0., 'draw': 0.}
+    for i in xrange(10000):
+        ret = main(players)
+        cnt[ret[0]] += 1
+    print cnt
